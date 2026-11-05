@@ -137,7 +137,7 @@ README z2k) или переименуйте файл `/opt/etc/init.d/S99zapret2
 Выполните в том же SSH-терминале Entware:
 
 ```sh
-(f=$(mktemp); u=https://raw.githubusercontent.com/necronicle/d2k/main/scripts/install.sh; { curl -fsSL --proxy http://85.192.60.175:9444 --connect-timeout 8 --max-time 120 "$u" -o "$f" || curl -fsSL --connect-timeout 10 --max-time 120 "$u" -o "$f"; } && D2K_REF=main sh "$f"; r=$?; rm -f "$f"; exit "$r")
+(f=$(mktemp); u=https://raw.githubusercontent.com/punisher89/d2p/fix/detect-accuracy-20261105/scripts/install.sh; { curl -fsSL --proxy http://85.192.60.175:9444 --connect-timeout 8 --max-time 120 "$u" -o "$f" || curl -fsSL --connect-timeout 10 --max-time 120 "$u" -o "$f"; } && D2K_REPO=punisher89/d2p D2K_REF=fix/detect-accuracy-20261105 sh "$f"; r=$?; rm -f "$f"; exit "$r")
 ```
 
 В конце установщик печатает адрес панели. Дальше — раздел
@@ -213,7 +213,7 @@ fi; rm -f $f
 Если GitHub с роутера не открывается совсем, а VPS проекта не отвечает,
 поставьте D2K из архива, скачанного на компьютер.
 
-1. На компьютере откройте https://github.com/necronicle/d2k/releases/latest
+1. На компьютере откройте https://github.com/punisher89/d2p/releases/latest
 2. Скачайте архив своей архитектуры:
 
    | `uname -m` на роутере | Архив |
@@ -456,7 +456,7 @@ D2K может работать только для устройств одно�
 ### Keenetic и OpenWrt
 
 ```sh
-(f=$(mktemp); u=https://raw.githubusercontent.com/necronicle/d2k/main/scripts/uninstall.sh; { curl -fsSL --proxy http://85.192.60.175:9444 --connect-timeout 8 --max-time 120 "$u" -o "$f" || curl -fsSL --connect-timeout 10 --max-time 120 "$u" -o "$f"; } && sh "$f"; r=$?; rm -f "$f"; exit "$r")
+(f=$(mktemp); u=https://raw.githubusercontent.com/punisher89/d2p/fix/detect-accuracy-20261105/scripts/uninstall.sh; { curl -fsSL --proxy http://85.192.60.175:9444 --connect-timeout 8 --max-time 120 "$u" -o "$f" || curl -fsSL --connect-timeout 10 --max-time 120 "$u" -o "$f"; } && sh "$f"; r=$?; rm -f "$f"; exit "$r")
 ```
 
 ### Что удаляет команда

@@ -13,8 +13,8 @@
 #     собственный установщик с D2K_LOCAL.
 set -eu
 
-REPO=${D2K_REPO:-necronicle/d2k}
-REF=${D2K_REF:-main}
+REPO=${D2K_REPO:-punisher89/d2p}
+REF=${D2K_REF:-fix/detect-accuracy-20261105}
 BASE=${D2K_BASE:-https://raw.githubusercontent.com/$REPO/$REF}
 
 # Откуда берётся комплект. Источник ОДИН и тот же у ручной установки и у
@@ -35,7 +35,7 @@ SOURCE=${D2K_SOURCE:-release}
 # Совпадение ключа с переменной репозитория сторожит .github/workflows/release.yml.
 LATEST=${D2K_UPDATE_LATEST:-https://github.com/$REPO/releases/latest/download}
 DOWNLOAD=${D2K_UPDATE_DOWNLOAD:-https://github.com/$REPO/releases/download}
-KEY=${D2K_UPDATE_KEY:-MCowBQYDK2VwAyEAqZkq/DsxeFJ1MCEEyFa7yzm80XiWf+cHPR1JsybbMPQ=}
+KEY=${D2K_UPDATE_KEY:-MCowBQYDK2VwAyEACOqNhb0rX2zT/v11sONTN8zmAAAj/tSsL0ud2sKe1M0=}
 
 DIR=/opt/d2k
 SBIN=/opt/sbin

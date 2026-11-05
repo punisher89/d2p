@@ -73,7 +73,8 @@ int main(void)
     r = d2k_resp_scan12(out, o, &done);
     if (r != 0 || done) { printf("FAIL 0e at record start: r=%d done=%d\n", r, done); fails++; }
 
-    /* решение: неизмеренное никогда не BLOCKED */
+    /* Решение: BLOCKED требует единогласного контроля; полный проход
+       цели доказывает CLEAR даже если отдельный контроль не удался. */
     {
         d2k_resp_result res;
         memset(&res, 0, sizeof(res));
@@ -81,8 +82,16 @@ int main(void)
         if (res.verdict != D2K_RESP_NOT_APPLICABLE) { printf("FAIL decide unmeasured\n"); fails++; }
         d2k_resp_decide(0, 3, 0, 3, &res);
         if (res.verdict != D2K_RESP_BLOCKED) { printf("FAIL decide blocked\n"); fails++; }
+        d2k_resp_decide(3, 0, 0, 3, &res);
+        if (res.verdict != D2K_RESP_CLEAR) { printf("FAIL target all pass must be clear\n"); fails++; }
+        d2k_resp_decide(0, 1, 0, 3, &res);
+        if (res.verdict != D2K_RESP_FLAKY) { printf("FAIL partial control must be flaky\n"); fails++; }
+        d2k_resp_decide(0, 2, 0, 3, &res);
+        if (res.verdict != D2K_RESP_FLAKY) { printf("FAIL 2/3 control must be flaky\n"); fails++; }
+        d2k_resp_decide(1, 3, 0, 3, &res);
+        if (res.verdict != D2K_RESP_FLAKY) { printf("FAIL partial target must be flaky\n"); fails++; }
         d2k_resp_decide(3, 0, 3, 3, &res);
-        if (res.verdict != D2K_RESP_NOT_APPLICABLE) { printf("FAIL decide ctl unmeasured\n"); fails++; }
+        if (res.verdict != D2K_RESP_CLEAR) { printf("FAIL target clear despite control unmeasured\n"); fails++; }
     }
 
     /* живой пир: шлёт >64 КБ записей без ServerHelloDone -> -1, не 0 */
@@ -114,6 +123,7 @@ int main(void)
         memset(&opt, 0, sizeof(opt));
         opt.timeout_ms = 2000;
         opt.repeats = 1;
+        opt.allow_loopback = 1;
         r = d2k_resp_handshake12("127.0.0.1", port, "example.org", &opt);
         if (r != -1) { printf("FAIL overflow handshake12=%d\n", r); fails++; }
         waitpid(pid, NULL, 0);

@@ -20,7 +20,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'fix/detect-accuracy-*']
     paths-ignore: ['**/*.md', 'docs/**', 'LICENSE']
   pull_request:
     paths-ignore: ['**/*.md', 'docs/**', 'LICENSE']
@@ -307,11 +307,11 @@ jobs:
 
   release:
     name: Release
-    # Only a green push to main ships; a pull request never does. A newer push
-    # cancels this run with the rest of CI (concurrency above): its own run
-    # releases the newer head, and publish itself refuses a commit main has left.
+    # Only green pushes to main or the detector fix branch ship; pull requests
+    # never do. A newer push cancels the stale run, and publish refuses a
+    # commit that the source branch has already moved past.
     needs: ci-ok
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fix/detect-accuracy-'))
     permissions:
       contents: write
     # The signing key is a secret of the d2k-signing environment, and only

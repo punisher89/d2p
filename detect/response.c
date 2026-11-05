@@ -69,6 +69,74 @@ static int resp_timeout(const d2k_opts *opt)
     return 3000;
 }
 
+/* A failed local setup or TCP connect is not evidence that DPI killed a TLS
+ * response. Bound connect explicitly and keep it separate from the response
+ * wait, which begins only after the TCP connection is established. */
+static int resp_connect_deadline(int fd, const struct sockaddr *addr,
+                                 socklen_t addrlen, int timeout_ms)
+{
+    int old_flags = fcntl(fd, F_GETFL, 0);
+    int rc = -1;
+    int saved_errno = 0;
+    int64_t deadline;
+
+    if (old_flags < 0 || fcntl(fd, F_SETFL, old_flags | O_NONBLOCK) != 0) {
+        return -1;
+    }
+    if (connect(fd, addr, addrlen) == 0) {
+        rc = 0;
+        goto restore;
+    }
+    if (errno != EINPROGRESS) {
+        saved_errno = errno;
+        goto restore;
+    }
+
+    deadline = d2k_now_ms() + timeout_ms;
+    for (;;) {
+        struct pollfd pfd;
+        int left = (int)(deadline - d2k_now_ms());
+        int pr, soerr = 0;
+        socklen_t sl = sizeof soerr;
+
+        if (left <= 0) {
+            saved_errno = ETIMEDOUT;
+            break;
+        }
+        pfd.fd = fd;
+        pfd.events = POLLOUT;
+        pfd.revents = 0;
+        pr = poll(&pfd, 1, left);
+        if (pr < 0 && errno == EINTR) {
+            continue;
+        }
+        if (pr <= 0) {
+            saved_errno = pr == 0 ? ETIMEDOUT : errno;
+            break;
+        }
+        if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &soerr, &sl) != 0) {
+            saved_errno = errno;
+            break;
+        }
+        if (soerr != 0) {
+            saved_errno = soerr;
+            break;
+        }
+        rc = 0;
+        break;
+    }
+
+restore:
+    if (fcntl(fd, F_SETFL, old_flags) != 0 && rc == 0) {
+        rc = -1;
+        saved_errno = errno;
+    }
+    if (rc != 0) {
+        errno = saved_errno ? saved_errno : EIO;
+    }
+    return rc;
+}
+
 /* Разбор потока записей TLS 1.2 по всему накопленному буферу.
  *
  * Сообщения рукопожатия тип(1) длина(3) могут быть разорваны между записями
@@ -135,41 +203,53 @@ int d2k_resp_handshake12(const char *host, const char *port, const char *sni,
 
     if (d2k_trigger_tls(sni, 1 /* legacy: без supported_versions, сервер пойдёт на 1.2 */,
                         &tr, err, sizeof(err)) != 0) {
-        return 0;
+        return -1;
     }
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = strchr(host, ':') ? AF_INET6 : AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     if (getaddrinfo(host, port, &hints, &ai) != 0 || !ai) {
-        return 0;
+        return -1;
     }
     fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
     if (fd < 0) {
         freeaddrinfo(ai);
-        return 0;
+        return -1;
     }
     {
         int mark = (int)(opt->mark ? opt->mark : (uint32_t)D2K_BYPASS_MARK);
         int one = 1;
         struct timeval tv;
-        (void)setsockopt(fd, SOL_SOCKET, SO_MARK, &mark, sizeof(mark));
+#if defined(__linux__)
+        /* Loopback fixtures do not traverse the router's NFQUEUE rules.
+         * Every real Linux probe must carry the bypass mark; otherwise it can
+         * measure D2K itself and produce a self-confirming verdict. */
+        if (!opt->allow_loopback &&
+            setsockopt(fd, SOL_SOCKET, SO_MARK, &mark, sizeof(mark)) != 0) {
+            freeaddrinfo(ai);
+            close(fd);
+            return -1;
+        }
+#else
+        (void)mark; /* SO_MARK is Linux-specific; standalone host tests have no NFQUEUE path. */
+#endif
         (void)setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
         tv.tv_sec = to / 1000;
         tv.tv_usec = (to % 1000) * 1000;
         (void)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
         (void)setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     }
-    if (connect(fd, ai->ai_addr, ai->ai_addrlen) != 0) {
+    if (resp_connect_deadline(fd, ai->ai_addr, ai->ai_addrlen, to) != 0) {
         freeaddrinfo(ai);
         close(fd);
-        return 0;
+        return -1;
     }
     freeaddrinfo(ai);
 
     if (d2k_send_nosig(fd, tr.payload, tr.len) != (ssize_t)tr.len) {
         close(fd);
-        return 0;
+        return -1;
     }
 
     buf = malloc(RESPONSE_CAP);
@@ -276,30 +356,41 @@ void d2k_resp_decide(int target, int control, int unmeasured, int repeats,
 {
     res->target = target;
     res->control = control;
-    if (unmeasured > 0) {
+    /* A complete target handshake is direct evidence that the target
+     * response is not blocked. The control is needed only to prove BLOCKED:
+     * a partial or failed control must never turn target silence into a DPI
+     * verdict. Local setup/connect errors and the local 64 KiB cap are
+     * counted as unmeasured by count_handshakes(). */
+    if (repeats > 0 && target == repeats) {
+        res->verdict = D2K_RESP_CLEAR;
+        snprintf(res->reason, sizeof(res->reason),
+                 "рукопожатие TLS 1.2 доходит до конца во всех %d прогонах — сертификат не режут",
+                 repeats);
+    } else if (unmeasured > 0) {
         res->verdict = D2K_RESP_NOT_APPLICABLE;
         snprintf(res->reason, sizeof(res->reason),
-                 "ответ сервера не поместился в локальный предел буфера (64 КБ) в %d прогонах — "
+                 "неизмеренных прогонов %d (локальная ошибка или предел буфера 64 КБ) — "
                  "про ответное направление вывода нет", unmeasured);
     } else if (control == 0) {
         res->verdict = D2K_RESP_NOT_APPLICABLE;
         snprintf(res->reason, sizeof(res->reason),
                  "контрольное рукопожатие по TLS 1.2 не завершается — сервер его не поддерживает "
                  "или мешает что-то ещё; про ответное направление вывода нет");
-    } else if (target == repeats) {
-        res->verdict = D2K_RESP_CLEAR;
+    } else if (control != repeats) {
+        res->verdict = D2K_RESP_FLAKY;
         snprintf(res->reason, sizeof(res->reason),
-                 "рукопожатие TLS 1.2 доходит до конца — сертификат не режут");
+                 "контроль нестабилен: TLS 1.2 завершился %d из %d раз — "
+                 "нельзя доказать, что отказ цели вызван фильтрацией", control, repeats);
     } else if (target == 0) {
         res->verdict = D2K_RESP_BLOCKED;
         snprintf(res->reason, sizeof(res->reason),
-                 "запрос проходит, а рукопожатие не завершается: с нейтральным именем на тот же "
-                 "адрес оно завершается каждый раз. Значит режут ОТВЕТ — сертификат в TLS 1.2 "
-                 "идёт открытым текстом");
+                 "запрос проходит, а рукопожатие цели не завершается ни разу; "
+                 "нейтральный контроль на том же адресе завершился %d из %d раз. "
+                 "Вероятна фильтрация ОТВЕТА TLS 1.2", control, repeats);
     } else {
         res->verdict = D2K_RESP_FLAKY;
         snprintf(res->reason, sizeof(res->reason),
-                 "рукопожатий дошло %d из %d — не воспроизводится", target, repeats);
+                 "рукопожатий цели дошло %d из %d — не воспроизводится", target, repeats);
     }
 }
 
