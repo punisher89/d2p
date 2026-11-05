@@ -24,7 +24,7 @@ AUTOUPDATE=1
 REPO=${D2K_REPO:-punisher89/d2p}
 DOWNLOAD=${D2K_UPDATE_DOWNLOAD:-https://github.com/$REPO/releases/download}
 LATEST=${D2K_UPDATE_LATEST:-https://github.com/$REPO/releases/latest/download}
-KEY=${D2K_UPDATE_KEY:-MCowBQYDK2VwAyEAqZkq/DsxeFJ1MCEEyFa7yzm80XiWf+cHPR1JsybbMPQ=}
+KEY=${D2K_UPDATE_KEY:-MCowBQYDK2VwAyEACOqNhb0rX2zT/v11sONTN8zmAAAj/tSsL0ud2sKe1M0=}
 INIT=${D2K_INIT:-/opt/etc/init.d/S99d2k}
 SBIN=${D2K_SBIN:-/opt/sbin}
 NDM_HOOK=${D2K_NDM_HOOK:-/opt/etc/ndm/netfilter.d/001-d2k.sh}
