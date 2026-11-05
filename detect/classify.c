@@ -320,11 +320,18 @@ static int dial_marked_mode(const char *host, const char *port, int timeout_ms,
         if (fd < 0) {
             continue;
         }
+#if defined(__linux__)
         int marked = setsockopt(fd, SOL_SOCKET, SO_MARK, &mk, sizeof(mk));
         if (require_mark && mark && marked != 0) {
             snprintf(err, errcap, "transport control: SO_MARK: %s", strerror(errno));
             close(fd); freeaddrinfo(ai); return -1;
         }
+#else
+        /* SO_MARK is Linux-specific. Standalone tools on other systems do not
+         * traverse the D2K NFQUEUE path, so there is no local bypass to mark. */
+        (void)require_mark;
+        (void)mark;
+#endif
         /* Без этого ядро склеит наши записи в один сегмент, и весь замер
          * превратится в измерение самого себя. */
         (void)setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
@@ -378,9 +385,9 @@ int d2k_dial_deadline_err(const char *err)
 }
 
 static int dial_marked(const char *host, const char *port, int timeout_ms,
-                       uint32_t mark, char *err, size_t errcap)
+                       uint32_t mark, char *err, size_t errcap, int require_mark)
 {
-    return dial_marked_mode(host, port, timeout_ms, mark, err, errcap, 0);
+    return dial_marked_mode(host, port, timeout_ms, mark, err, errcap, require_mark);
 }
 
 /* One connection: write the trigger, then wait for its reply. A raw connect
@@ -434,7 +441,10 @@ static int once_probe(const char *host, const char *port, const d2k_trigger *tr,
         return d2k_raw_probe_poison_family(ip, family, (uint16_t)strtoul(port, NULL, 10),
             tr, &split, opt->timeout_ms, opt->mark, &opt->cancel, err, errcap);
     }
-    fd = dial_marked(host, port, opt->timeout_ms, opt->mark, err, errcap);
+    /* Loopback fixtures do not traverse the router's NFQUEUE chain. On a
+     * real Linux target the bypass mark is mandatory, never best-effort. */
+    fd = dial_marked(host, port, opt->timeout_ms, opt->mark, err, errcap,
+                     !opt->allow_loopback);
     if (fd < 0) {
         return -1;
     }
