@@ -38,7 +38,7 @@ defaults:
 jobs:
   plan:
     name: Plan — is there anything to release
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fix/detect-accuracy-')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -187,9 +187,11 @@ jobs:
         run: |
           set -euo pipefail
           superseded() {
-            head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+            ref=${GITHUB_REF_NAME:-main}
+            encoded_ref=$(printf '%s' "$ref" | sed 's|/|%2F|g')
+            head=$(gh api "repos/$GH_REPO/commits/$encoded_ref" --jq .sha)
             [ "$head" != "$SHA" ] || return 1
-            msg="main is at ${head:0:7} now, not at ${SHA:0:7}: the newer CI run releases it"
+            msg="$ref is at ${head:0:7} now, not at ${SHA:0:7}: the newer CI run releases it"
             if [ "$MANUAL" = true ]; then echo "::error::$msg"; exit 1; fi
             echo "::notice::$msg"
           }
