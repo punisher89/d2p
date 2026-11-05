@@ -13,7 +13,7 @@
 #     собственный установщик с D2K_LOCAL.
 set -eu
 
-REPO=${D2K_REPO:-necronicle/d2k}
+REPO=${D2K_REPO:-punisher89/d2p}
 REF=${D2K_REF:-main}
 BASE=${D2K_BASE:-https://raw.githubusercontent.com/$REPO/$REF}
 
