@@ -309,7 +309,6 @@ static int dial_marked_mode(const char *host, const char *port, int timeout_ms,
         return -1;
     }
     for (p = ai; p; p = p->ai_next) {
-        int mk = (int)mark;
         int one = 1;
         int fl;
         struct pollfd pfd;
@@ -321,6 +320,7 @@ static int dial_marked_mode(const char *host, const char *port, int timeout_ms,
             continue;
         }
 #if defined(__linux__)
+        int mk = (int)mark;
         int marked = setsockopt(fd, SOL_SOCKET, SO_MARK, &mk, sizeof(mk));
         if (require_mark && mark && marked != 0) {
             snprintf(err, errcap, "transport control: SO_MARK: %s", strerror(errno));
