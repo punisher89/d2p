@@ -1,7 +1,7 @@
 name: D2K release
-# Continuous delivery from main. Nobody starts a release by hand:
+# Continuous delivery from main and the active detector fix branch.
 #
-#   push to main → CI (ci.yml) → ci-ok green → this workflow
+#   push to main or fix/detect-accuracy-* → CI (ci.yml) → ci-ok green → this workflow
 #     plan     scripts/release-plan.sh: is there a fix or a feature since the
 #              last release? No → stop here, nothing is built.
 #     build    nine CPUs in parallel, each tested under QEMU
@@ -11,8 +11,8 @@ name: D2K release
 # Routers take releases/latest/download/latest.json, check the signature with
 # the pinned key and install the archive for their CPU (files/d2k-update.sh).
 #
-# The manual run (Actions → D2K release → Run workflow) stays for one case:
-# release main now even without a fix or a feature.
+# Manual run also supports the selected fix branch, for a release now even
+# without another fix/feature commit.
 on:
   workflow_call:
     inputs:
@@ -178,8 +178,8 @@ jobs:
       # permission (a platform rule). GitHub therefore refuses it a tag on a
       # commit whose .github/workflows differ from the default branch:
       # "HTTP 403: Resource not accessible by integration". 12.10.2026 one
-      # release failed exactly so — main moved with a ci.yml change while it
-      # built. A commit that is no longer the head of main is superseded: the
+      # release once failed exactly so — the source branch moved with a ci.yml
+      # change while it built. A commit that is no longer the head of main is superseded: the
       # CI run of the newer head releases it. A personal token with the
       # "workflow" scope would also pass, but it is a long-lived secret with
       # the owner's rights, and the release does not need it.
@@ -208,7 +208,7 @@ jobs:
           gh release create "$RELEASE_ID" --draft --target "$SHA" \
             --title "D2K $VERSION" --notes-file "$RUNNER_TEMP/notes.txt" \
             "$out"/d2k-*.tar.gz "$out/latest.json" "$out/latest.json.sig"
-          # The tag is made here. main can move in the seconds since the check.
+          # The tag is made here. The source branch can move in the seconds since the check.
           if ! gh release edit "$RELEASE_ID" --draft=false --latest; then
             gh release delete "$RELEASE_ID" --yes || true
             superseded && exit 0
