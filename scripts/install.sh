@@ -14,7 +14,7 @@
 set -eu
 
 REPO=${D2K_REPO:-punisher89/d2p}
-REF=${D2K_REF:-main}
+REF=${D2K_REF:-fix/detect-accuracy-20261105}
 BASE=${D2K_BASE:-https://raw.githubusercontent.com/$REPO/$REF}
 
 # Откуда берётся комплект. Источник ОДИН и тот же у ручной установки и у
