@@ -35,7 +35,7 @@ SOURCE=${D2K_SOURCE:-release}
 # Совпадение ключа с переменной репозитория сторожит .github/workflows/release.yml.
 LATEST=${D2K_UPDATE_LATEST:-https://github.com/$REPO/releases/latest/download}
 DOWNLOAD=${D2K_UPDATE_DOWNLOAD:-https://github.com/$REPO/releases/download}
-KEY=${D2K_UPDATE_KEY:-MCowBQYDK2VwAyEAqZkq/DsxeFJ1MCEEyFa7yzm80XiWf+cHPR1JsybbMPQ=}
+KEY=${D2K_UPDATE_KEY:-MCowBQYDK2VwAyEACOqNhb0rX2zT/v11sONTN8zmAAAj/tSsL0ud2sKe1M0=}
 
 DIR=/opt/d2k
 SBIN=/opt/sbin
