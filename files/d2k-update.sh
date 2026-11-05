@@ -21,7 +21,7 @@ CONF=$DIR/config
 AUTOUPDATE=1
 # shellcheck disable=SC1090
 [ ! -r "$CONF" ] || . "$CONF"
-REPO=${D2K_REPO:-necronicle/d2k}
+REPO=${D2K_REPO:-punisher89/d2p}
 DOWNLOAD=${D2K_UPDATE_DOWNLOAD:-https://github.com/$REPO/releases/download}
 LATEST=${D2K_UPDATE_LATEST:-https://github.com/$REPO/releases/latest/download}
 KEY=${D2K_UPDATE_KEY:-MCowBQYDK2VwAyEAqZkq/DsxeFJ1MCEEyFa7yzm80XiWf+cHPR1JsybbMPQ=}
