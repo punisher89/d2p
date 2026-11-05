@@ -548,7 +548,8 @@ int d2k_probe_data_ack(const char *host, const char *port, const d2k_opts *opt,
     snprintf(err, errcap, "подтверждение данных на этой платформе не наблюдается");
     return -2;
 #else
-    fd = dial_marked(host, port, opt->timeout_ms, opt->mark, err, errcap);
+    fd = dial_marked(host, port, opt->timeout_ms, opt->mark, err, errcap,
+                     !opt->allow_loopback);
     if (fd < 0) {
         return -1;
     }
