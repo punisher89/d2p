@@ -84,10 +84,10 @@ tool=curl
         DOWNLOAD_FAIL=0 sh -c "$command"
         [ -s "$RUN_MARKER" ]
         [ ! -e "$(cat "$CURL_TARGET")" ]
-        [ "$(cat "$CURL_URL")" = "https://raw.githubusercontent.com/necronicle/d2k/main/scripts/$script.sh" ] \
+        [ "$(cat "$CURL_URL")" = "https://raw.githubusercontent.com/punisher89/d2p/fix/detect-accuracy-20261105/scripts/$script.sh" ] \
             || { echo "команда $tool $script тянет не тот адрес" >&2; exit 1; }
         if [ "$script" = install ]; then
-            [ "$(cat "$RUN_MARKER")" = executed:main ] \
+            [ "$(cat "$RUN_MARKER")" = executed:fix/detect-accuracy-20261105 ] \
                 || { echo "установка $tool идёт не с ветки main" >&2; exit 1; }
         fi
         # Сперва через проводник на VPS.
